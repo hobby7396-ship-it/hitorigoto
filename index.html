@@ -1,0 +1,1170 @@
+html
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#1a1714">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>ひとりごと</title>
+<style>
+  /* Night Sepia color tokens: low-luminance, low-contrast for late-night eye comfort */
+  :root {
+    --bg-desk: #1a1714;
+    --paper-top: #29241e;
+    --paper-under-1: #231f1a;
+    --paper-under-2: #1e1a16;
+    --text-main: #dfd5c5;
+    --text-sub: #8c8173;
+    --text-muted: #685f54;
+    --accent: #b88354;
+    --accent-hover: #c99262;
+    --danger: #b5665c;
+    --wire-dark: #110f0d;
+    --wire-mid: #4a4239;
+    --wire-light: #75685a;
+  }
+
+  * {
+    box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    min-height: 100dvh;
+    background-color: var(--bg-desk);
+    color: var(--text-main);
+    font-family: "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Yu Gothic", sans-serif;
+    line-height: 1.75;
+    letter-spacing: 0.03em;
+    overflow-x: hidden;
+  }
+
+  /* Subtle matte paper grain across the desk and pad */
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0.035;
+    z-index: 900;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+  }
+
+  .app-shell {
+    width: 100%;
+    max-width: 460px;
+    min-height: 100dvh;
+    margin: 0 auto;
+    padding: 14px 16px 24px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: 14px;
+  }
+
+  /* Minimal top bar */
+  .top-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 2px 4px;
+    min-height: 36px;
+  }
+
+  .brand-title {
+    margin: 0;
+    font-size: 0.96rem;
+    font-weight: 500;
+    color: var(--text-sub);
+    letter-spacing: 0.14em;
+  }
+
+  .top-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .icon-btn {
+    background: none;
+    border: none;
+    color: var(--text-sub);
+    padding: 7px 9px;
+    border-radius: 7px;
+    font-size: 0.78rem;
+    font-family: inherit;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    transition: background-color 0.18s ease, color 0.18s ease;
+  }
+
+  .icon-btn:hover,
+  .icon-btn:active {
+    background-color: rgba(255, 255, 255, 0.05);
+    color: var(--text-main);
+  }
+
+  /* Vertical top-bound spiral memo pad stage */
+  .pad-stage {
+    position: relative;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 440px;
+    perspective: 1100px;
+  }
+
+  /* Stacked under-sheets giving physical thickness to the pad */
+  .under-sheet {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    top: 12px;
+    border-radius: 4px 4px 10px 10px;
+    pointer-events: none;
+  }
+
+  .under-sheet.layer-2 {
+    transform: translateY(8px) scaleX(0.975);
+    background-color: var(--paper-under-2);
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.42);
+    z-index: 1;
+  }
+
+  .under-sheet.layer-1 {
+    transform: translateY(4px) scaleX(0.99);
+    background-color: var(--paper-under-1);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.32);
+    z-index: 2;
+  }
+
+  /* Active top sheet (no grid lines, no heavy borders) */
+  .active-sheet {
+    position: relative;
+    z-index: 5;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    background-color: var(--paper-top);
+    border-radius: 3px 3px 10px 10px;
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.48);
+    transform-origin: top center;
+    transition: transform 0.18s ease-out, opacity 0.24s ease-out;
+    will-change: transform, opacity;
+  }
+
+  .active-sheet.dragging {
+    transition: none;
+  }
+
+  /* Tear / flip-off animation along the top spiral binding */
+  .active-sheet.tearing-off {
+    pointer-events: none;
+    animation: tearFlipAway 0.42s cubic-bezier(0.22, 0.85, 0.36, 1) forwards;
+  }
+
+  @keyframes tearFlipAway {
+    0% {
+      opacity: 1;
+      transform: translate3d(0, 0, 0) rotateX(0deg) rotateZ(0deg);
+    }
+    45% {
+      opacity: 0.88;
+      transform: translate3d(18px, -22px, 0) rotateX(26deg) rotateZ(2.5deg);
+    }
+    100% {
+      opacity: 0;
+      transform: translate3d(68px, -115px, 0) rotateX(58deg) rotateZ(7deg) scale(0.95);
+    }
+  }
+
+  /* Top spiral wire binding strip */
+  .spiral-binding {
+    position: relative;
+    height: 28px;
+    background: linear-gradient(to bottom, rgba(0, 0, 0, 0.28), rgba(0, 0, 0, 0.06));
+    border-radius: 3px 3px 0 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-evenly;
+    padding: 0 12px;
+    user-select: none;
+  }
+
+  /* Subtle perforated tear line just below the spiral coils */
+  .spiral-binding::after {
+    content: "";
+    position: absolute;
+    left: 10px;
+    right: 10px;
+    bottom: 0;
+    height: 1px;
+    background-image: repeating-linear-gradient(
+      to right,
+      rgba(223, 213, 197, 0.13) 0px,
+      rgba(223, 213, 197, 0.13) 5px,
+      transparent 5px,
+      transparent 10px
+    );
+  }
+
+  .spiral-coil {
+    position: relative;
+    width: 10px;
+    height: 24px;
+    transform: translateY(-7px);
+    flex-shrink: 0;
+  }
+
+  /* Punch hole on the paper */
+  .spiral-coil::before {
+    content: "";
+    position: absolute;
+    bottom: 2px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background-color: var(--bg-desk);
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.85);
+  }
+
+  /* Metallic wire loop wrapping over the top edge */
+  .spiral-coil::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 1px;
+    right: 1px;
+    height: 20px;
+    border-radius: 6px 6px 4px 4px;
+    border: 2.2px solid var(--wire-mid);
+    border-bottom-color: var(--wire-light);
+    box-shadow:
+      0 2px 3px rgba(0, 0, 0, 0.65),
+      inset 0 1px 1px rgba(255, 255, 255, 0.14);
+    background: linear-gradient(
+      90deg,
+      var(--wire-dark) 0%,
+      var(--wire-light) 35%,
+      var(--wire-mid) 70%,
+      var(--wire-dark) 100%
+    );
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    padding: 2px;
+  }
+
+  /* Spacious blank writing area without lines */
+  .sheet-body {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    padding: 18px 20px 12px;
+    min-height: 0;
+  }
+
+  #memoTextarea {
+    flex: 1;
+    width: 100%;
+    min-height: 240px;
+    background: transparent;
+    border: none;
+    outline: none;
+    resize: none;
+    color: var(--text-main);
+    font-family: inherit;
+    font-size: 1rem;
+    line-height: 1.85;
+    letter-spacing: 0.03em;
+    padding: 0;
+  }
+
+  #memoTextarea::placeholder {
+    color: var(--text-muted);
+  }
+
+  /* Bottom sheet bar with quiet status & tactile Tear / Flip action */
+  .sheet-footer {
+    padding: 12px 18px 18px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .sheet-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+
+  .ttl-hint {
+    font-size: 0.73rem;
+    color: var(--text-sub);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .gesture-hint {
+    font-size: 0.68rem;
+    color: var(--text-muted);
+  }
+
+  .tear-btn {
+    background-color: var(--accent);
+    color: #191613;
+    border: none;
+    border-radius: 8px;
+    padding: 11px 20px;
+    font-family: inherit;
+    font-size: 0.88rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    cursor: pointer;
+    flex-shrink: 0;
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.28);
+    transition: background-color 0.18s ease, transform 0.12s ease, opacity 0.18s ease;
+  }
+
+  .tear-btn:hover:not(:disabled) {
+    background-color: var(--accent-hover);
+  }
+
+  .tear-btn:active:not(:disabled) {
+    transform: translateY(1px) scale(0.98);
+  }
+
+  .tear-btn:disabled {
+    opacity: 0.32;
+    cursor: default;
+    box-shadow: none;
+  }
+
+  /* Subtle status toast (avoids alert()) */
+  .toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%) translateY(14px);
+    background-color: #2f2923;
+    color: var(--text-main);
+    padding: 8px 16px;
+    border-radius: 999px;
+    font-size: 0.78rem;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+    z-index: 500;
+    white-space: nowrap;
+  }
+
+  .toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+
+  /* Settings & quiet background archive modal */
+  .modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background-color: rgba(13, 11, 9, 0.78);
+    display: none;
+    align-items: flex-end;
+    justify-content: center;
+    z-index: 400;
+  }
+
+  @media (min-width: 520px) {
+    .modal-backdrop {
+      align-items: center;
+      padding: 20px;
+    }
+  }
+
+  .modal-backdrop.open {
+    display: flex;
+  }
+
+  .modal-panel {
+    width: 100%;
+    max-width: 440px;
+    max-height: 86dvh;
+    background-color: #231f1a;
+    border-radius: 16px 16px 0 0;
+    padding: 20px 20px 26px;
+    box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.55);
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+  }
+
+  @media (min-width: 520px) {
+    .modal-panel {
+      border-radius: 12px;
+      padding: 22px;
+    }
+  }
+
+  .modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .modal-title {
+    margin: 0;
+    font-size: 0.95rem;
+    font-weight: 500;
+    color: var(--text-main);
+  }
+
+  .setting-section {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .section-label {
+    font-size: 0.78rem;
+    color: var(--text-sub);
+  }
+
+  .ttl-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
+  }
+
+  .ttl-choice {
+    background-color: var(--bg-desk);
+    color: var(--text-sub);
+    border: none;
+    border-radius: 6px;
+    padding: 8px 4px;
+    font-family: inherit;
+    font-size: 0.78rem;
+    cursor: pointer;
+    transition: background-color 0.16s ease, color 0.16s ease;
+  }
+
+  .ttl-choice.active {
+    background-color: var(--accent);
+    color: #191613;
+    font-weight: 600;
+  }
+
+  .setting-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .pill-toggle {
+    background-color: var(--bg-desk);
+    color: var(--text-main);
+    border: none;
+    border-radius: 6px;
+    padding: 6px 14px;
+    font-family: inherit;
+    font-size: 0.78rem;
+    cursor: pointer;
+  }
+
+  .divider {
+    height: 1px;
+    background-color: rgba(223, 213, 197, 0.08);
+  }
+
+  .archive-box {
+    display: none;
+    flex-direction: column;
+    gap: 10px;
+    background-color: var(--bg-desk);
+    border-radius: 8px;
+    padding: 12px;
+    max-height: 220px;
+    overflow-y: auto;
+  }
+
+  .archive-box.open {
+    display: flex;
+  }
+
+  .archive-item {
+    background-color: var(--paper-top);
+    border-radius: 6px;
+    padding: 10px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .archive-item-text {
+    margin: 0;
+    font-size: 0.84rem;
+    line-height: 1.6;
+    white-space: pre-wrap;
+    word-break: break-word;
+    color: var(--text-main);
+  }
+
+  .archive-item-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.7rem;
+    color: var(--text-sub);
+  }
+
+  .mini-del {
+    background: none;
+    border: none;
+    color: var(--text-sub);
+    font-size: 0.72rem;
+    font-family: inherit;
+    cursor: pointer;
+    padding: 2px 4px;
+  }
+
+  .mini-del:hover {
+    color: var(--danger);
+  }
+
+  .action-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .secondary-btn {
+    background-color: var(--bg-desk);
+    color: var(--text-main);
+    border: none;
+    border-radius: 6px;
+    padding: 10px 12px;
+    font-family: inherit;
+    font-size: 0.82rem;
+    cursor: pointer;
+    text-align: center;
+  }
+
+  .secondary-btn:hover {
+    background-color: #211d19;
+  }
+
+  .danger-btn {
+    background-color: rgba(181, 102, 92, 0.14);
+    color: #dca098;
+    border: none;
+    border-radius: 6px;
+    padding: 10px 12px;
+    font-family: inherit;
+    font-size: 0.82rem;
+    cursor: pointer;
+    text-align: center;
+  }
+
+  .danger-btn:hover {
+    background-color: rgba(181, 102, 92, 0.22);
+  }
+
+  .archive-empty {
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 0.78rem;
+    padding: 14px 0;
+  }
+</style>
+</head>
+<body>
+
+<div class="app-shell">
+  <header class="top-bar">
+    <h1 class="brand-title">ひとりごと</h1>
+    <div class="top-actions">
+      <button class="icon-btn" id="openSettingsBtn" aria-label="設定と控え">
+        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="3"></circle>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+        </svg>
+      </button>
+    </div>
+  </header>
+
+  <main class="pad-stage" aria-label="縦型メモパッド">
+    <div class="under-sheet layer-2" aria-hidden="true"></div>
+    <div class="under-sheet layer-1" aria-hidden="true"></div>
+
+    <section class="active-sheet" id="activeSheet">
+      <div class="spiral-binding" id="spiralBinding" aria-hidden="true">
+        <span class="spiral-coil"></span>
+        <span class="spiral-coil"></span>
+        <span class="spiral-coil"></span>
+        <span class="spiral-coil"></span>
+        <span class="spiral-coil"></span>
+        <span class="spiral-coil"></span>
+        <span class="spiral-coil"></span>
+        <span class="spiral-coil"></span>
+      </div>
+
+      <div class="sheet-body">
+        <textarea
+          id="memoTextarea"
+          placeholder="書きたいことをそのまま書き殴る…"
+          autocomplete="off"
+          autocorrect="off"
+          spellcheck="false"
+        ></textarea>
+      </div>
+
+      <div class="sheet-footer">
+        <div class="sheet-meta">
+          <span class="ttl-hint" id="ttlHint">ちぎると裏に控え（24時間で消滅）</span>
+          <span class="gesture-hint">ボタンまたは上部を上にスワイプでちぎる</span>
+        </div>
+        <button class="tear-btn" id="tearBtn" disabled>ちぎる・めくる</button>
+      </div>
+    </section>
+  </main>
+</div>
+
+<!-- Settings & Quiet Background Archive Modal -->
+<div class="modal-backdrop" id="settingsModal" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
+  <div class="modal-panel">
+    <div class="modal-header">
+      <h2 class="modal-title" id="settingsTitle">揮発時間と控え</h2>
+      <button class="icon-btn" id="closeSettingsBtn" aria-label="閉じる">✕</button>
+    </div>
+
+    <div class="setting-section">
+      <span class="section-label">裏で保持する時間（自動で消えるまでの時間）</span>
+      <div class="ttl-grid" id="ttlGrid">
+        <button class="ttl-choice" data-hours="24">24時間</button>
+        <button class="ttl-choice" data-hours="72">3日</button>
+        <button class="ttl-choice" data-hours="168">7日</button>
+        <button class="ttl-choice" data-hours="0">消さない</button>
+      </div>
+    </div>
+
+    <div class="setting-row">
+      <span class="section-label">ちぎる音（低音・穏やか）</span>
+      <button class="pill-toggle" id="soundToggleBtn">ON</button>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="action-stack">
+      <button class="secondary-btn" id="toggleArchiveBtn">裏で取っておいている枚数を見る（0枚）</button>
+      <div class="archive-box" id="archiveBox"></div>
+      <button class="secondary-btn" id="exportBtn">裏の控えをテキストで書き出す</button>
+      <button class="danger-btn" id="clearAllBtn">裏の控えと現在の紙をすべて消す</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+  (function () {
+    'use strict';
+
+    const STORAGE_ARCHIVE_KEY = 'hitorigoto_pad_archive_v1';
+    const STORAGE_DRAFT_KEY = 'hitorigoto_pad_draft_v1';
+    const STORAGE_SETTINGS_KEY = 'hitorigoto_pad_settings_v1';
+
+    // Sandboxed-safe storage wrapper (falls back cleanly in restricted iframes)
+    const memoryFallback = new Map();
+    function readStorage(key) {
+      try {
+        const raw = window.localStorage.getItem(key);
+        if (raw !== null) return raw;
+      } catch (err) {
+        // Ignore SecurityError / QuotaExceededError in sandboxed frames
+      }
+      return memoryFallback.has(key) ? memoryFallback.get(key) : null;
+    }
+
+    function writeStorage(key, value) {
+      memoryFallback.set(key, String(value));
+      try {
+        window.localStorage.setItem(key, String(value));
+      } catch (err) {
+        // Ignore sandboxed storage write restrictions
+      }
+    }
+
+    let state = {
+      archive: [],
+      draft: '',
+      settings: {
+        ttlHours: 24,
+        sound: true
+      }
+    };
+
+    let isAnimatingTear = false;
+    let archiveVisible = false;
+    let clearArmed = false;
+    let clearArmTimer = null;
+    let toastTimer = null;
+
+    // DOM references
+    const activeSheet = document.getElementById('activeSheet');
+    const spiralBinding = document.getElementById('spiralBinding');
+    const memoTextarea = document.getElementById('memoTextarea');
+    const tearBtn = document.getElementById('tearBtn');
+    const ttlHint = document.getElementById('ttlHint');
+    const toastEl = document.getElementById('toast');
+
+    const settingsModal = document.getElementById('settingsModal');
+    const openSettingsBtn = document.getElementById('openSettingsBtn');
+    const closeSettingsBtn = document.getElementById('closeSettingsBtn');
+    const ttlGrid = document.getElementById('ttlGrid');
+    const soundToggleBtn = document.getElementById('soundToggleBtn');
+    const toggleArchiveBtn = document.getElementById('toggleArchiveBtn');
+    const archiveBox = document.getElementById('archiveBox');
+    const exportBtn = document.getElementById('exportBtn');
+    const clearAllBtn = document.getElementById('clearAllBtn');
+
+    function showToast(msg) {
+      if (!toastEl) return;
+      toastEl.textContent = msg;
+      toastEl.classList.add('show');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => {
+        toastEl.classList.remove('show');
+      }, 2000);
+    }
+
+    // Gentle low-frequency Web Audio API sound (~220Hz - 390Hz)
+    let audioCtx = null;
+    function playTearSound() {
+      if (!state.settings.sound) return;
+      try {
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContextClass) return;
+        if (!audioCtx) {
+          audioCtx = new AudioContextClass();
+        }
+        if (audioCtx.state === 'suspended') {
+          audioCtx.resume().catch(() => {});
+        }
+
+        const now = audioCtx.currentTime;
+        // Soft paper-tear / page-flip resonance in 230Hz -> 360Hz range
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(240, now);
+        osc.frequency.exponentialRampToValueAtTime(355, now + 0.09);
+        osc.frequency.exponentialRampToValueAtTime(220, now + 0.22);
+
+        gain.gain.setValueAtTime(0.001, now);
+        gain.gain.linearRampToValueAtTime(0.11, now + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.24);
+
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start(now);
+        osc.stop(now + 0.25);
+      } catch (err) {
+        // Silently ignore audio errors in restricted preview contexts
+      }
+    }
+
+    function purgeExpiredArchive() {
+      const hours = Number(state.settings.ttlHours);
+      if (!hours || hours <= 0) return false;
+      const now = Date.now();
+      const ttlMs = hours * 60 * 60 * 1000;
+      const before = state.archive.length;
+      state.archive = state.archive.filter((item) => {
+        return typeof item.createdAt === 'number' && (now - item.createdAt) < ttlMs;
+      });
+      return state.archive.length !== before;
+    }
+
+    function loadState() {
+      try {
+        const rawSettings = readStorage(STORAGE_SETTINGS_KEY);
+        if (rawSettings) {
+          const parsedSettings = JSON.parse(rawSettings);
+          if (parsedSettings && typeof parsedSettings === 'object') {
+            state.settings.ttlHours = typeof parsedSettings.ttlHours === 'number' ? parsedSettings.ttlHours : 24;
+            state.settings.sound = typeof parsedSettings.sound === 'boolean' ? parsedSettings.sound : true;
+          }
+        }
+      } catch (err) {}
+
+      try {
+        const rawArchive = readStorage(STORAGE_ARCHIVE_KEY);
+        if (rawArchive) {
+          const parsedArchive = JSON.parse(rawArchive);
+          if (Array.isArray(parsedArchive)) {
+            state.archive = parsedArchive;
+          }
+        }
+      } catch (err) {}
+
+      const rawDraft = readStorage(STORAGE_DRAFT_KEY);
+      if (typeof rawDraft === 'string') {
+        state.draft = rawDraft;
+      }
+
+      if (purgeExpiredArchive()) {
+        saveArchive();
+      }
+    }
+
+    function saveArchive() {
+      writeStorage(STORAGE_ARCHIVE_KEY, JSON.stringify(state.archive));
+    }
+
+    function saveDraft() {
+      writeStorage(STORAGE_DRAFT_KEY, state.draft);
+    }
+
+    function saveSettings() {
+      writeStorage(STORAGE_SETTINGS_KEY, JSON.stringify(state.settings));
+    }
+
+    function formatStamp(ts) {
+      const d = new Date(ts);
+      const days = ['日', '月', '火', '水', '木', '金', '土'];
+      const m = d.getMonth() + 1;
+      const day = d.getDate();
+      const w = days[d.getDay()];
+      const hh = String(d.getHours()).padStart(2, '0');
+      const mm = String(d.getMinutes()).padStart(2, '0');
+      return `${m}/${day}(${w}) ${hh}:${mm}`;
+    }
+
+    function formatRemaining(ts) {
+      const hours = Number(state.settings.ttlHours);
+      if (!hours || hours <= 0) return '保持中';
+      const expireAt = ts + hours * 60 * 60 * 1000;
+      const diff = expireAt - Date.now();
+      if (diff <= 0) return '消滅予定';
+      const mins = Math.ceil(diff / 60000);
+      if (mins < 60) return `あと${mins}分`;
+      const hrs = Math.ceil(mins / 60);
+      if (hrs < 48) return `あと${hrs}時間`;
+      const days = Math.ceil(hrs / 24);
+      return `あと${days}日`;
+    }
+
+    function updateTearButtonState() {
+      const hasText = memoTextarea.value.trim().length > 0;
+      tearBtn.disabled = !hasText || isAnimatingTear;
+    }
+
+    function updateSettingsLabels() {
+      const map = {
+        24: '24時間で自動消滅',
+        72: '3日で自動消滅',
+        168: '7日で自動消滅',
+        0: '自動消滅なし'
+      };
+      const label = map[state.settings.ttlHours] || '24時間で自動消滅';
+      ttlHint.textContent = `ちぎると裏に控え（${label}）`;
+
+      ttlGrid.querySelectorAll('.ttl-choice').forEach((btn) => {
+        const h = Number(btn.dataset.hours);
+        btn.classList.toggle('active', h === Number(state.settings.ttlHours));
+      });
+
+      soundToggleBtn.textContent = state.settings.sound ? 'ON' : 'OFF';
+      toggleArchiveBtn.textContent = `裏で取っておいている枚数を見る（${state.archive.length}枚）`;
+    }
+
+    function renderArchiveBox() {
+      purgeExpiredArchive();
+      saveArchive();
+      updateSettingsLabels();
+      archiveBox.innerHTML = '';
+
+      if (state.archive.length === 0) {
+        const empty = document.createElement('div');
+        empty.className = 'archive-empty';
+        empty.textContent = '裏に取っておいているメモはありません';
+        archiveBox.appendChild(empty);
+        return;
+      }
+
+      state.archive.forEach((entry) => {
+        const card = document.createElement('div');
+        card.className = 'archive-item';
+
+        const p = document.createElement('p');
+        p.className = 'archive-item-text';
+        p.textContent = entry.text;
+
+        const meta = document.createElement('div');
+        meta.className = 'archive-item-meta';
+
+        const info = document.createElement('span');
+        info.textContent = `${formatStamp(entry.createdAt)} ・ ${formatRemaining(entry.createdAt)}`;
+
+        const delBtn = document.createElement('button');
+        delBtn.className = 'mini-del';
+        delBtn.textContent = '捨てる';
+        delBtn.addEventListener('click', () => {
+          state.archive = state.archive.filter((x) => x.id !== entry.id);
+          saveArchive();
+          renderArchiveBox();
+        });
+
+        meta.appendChild(info);
+        meta.appendChild(delBtn);
+        card.appendChild(p);
+        card.appendChild(meta);
+        archiveBox.appendChild(card);
+      });
+    }
+
+    // Core interaction: tear / flip sheet off the top pad -> disappear from main view, keep quietly in background
+    function tearOffActiveSheet() {
+      if (isAnimatingTear) return;
+      const content = memoTextarea.value.trim();
+      if (!content) return;
+
+      isAnimatingTear = true;
+      updateTearButtonState();
+      playTearSound();
+
+      const record = {
+        id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+        text: content,
+        createdAt: Date.now()
+      };
+
+      activeSheet.style.transform = '';
+      activeSheet.classList.remove('dragging');
+      activeSheet.classList.add('tearing-off');
+
+      setTimeout(() => {
+        state.archive.unshift(record);
+        purgeExpiredArchive();
+        saveArchive();
+
+        state.draft = '';
+        saveDraft();
+
+        memoTextarea.value = '';
+        activeSheet.classList.remove('tearing-off');
+        activeSheet.style.transform = '';
+        activeSheet.style.opacity = '';
+        isAnimatingTear = false;
+        updateTearButtonState();
+        updateSettingsLabels();
+        showToast('ちぎって裏にまとめました');
+      }, 400);
+    }
+
+    // Optional swipe-up / flick gesture from top spiral binding or sheet
+    let dragStartY = null;
+    let dragStartX = null;
+    let isDraggingSheet = false;
+
+    function handlePointerDown(e) {
+      if (isAnimatingTear || memoTextarea.value.trim().length === 0) return;
+      // Only start sheet drag when dragging the top spiral header or holding Shift/touch near top
+      const isHeaderTouch = spiralBinding.contains(e.target);
+      if (!isHeaderTouch) return;
+
+      const point = e.touches ? e.touches[0] : e;
+      dragStartY = point.clientY;
+      dragStartX = point.clientX;
+      isDraggingSheet = true;
+      activeSheet.classList.add('dragging');
+    }
+
+    function handlePointerMove(e) {
+      if (!isDraggingSheet || dragStartY === null) return;
+      const point = e.touches ? e.touches[0] : e;
+      const dy = point.clientY - dragStartY;
+      const dx = point.clientX - dragStartX;
+
+      if (dy < 0) {
+        const pullUp = Math.max(dy, -150);
+        const tilt = Math.max(-18, pullUp * 0.11);
+        const shiftX = Math.max(-40, Math.min(60, dx * 0.4 + Math.abs(pullUp) * 0.18));
+        activeSheet.style.transform = `translate3d(${shiftX}px, ${pullUp}px, 0) rotate(${shiftX * 0.06}deg) rotateX(${Math.abs(tilt)}deg)`;
+        activeSheet.style.opacity = String(Math.max(0.25, 1 + pullUp / 190));
+      }
+    }
+
+    function handlePointerUp(e) {
+      if (!isDraggingSheet) return;
+      const point = (e.changedTouches && e.changedTouches[0]) ? e.changedTouches[0] : e;
+      const dy = dragStartY !== null ? (point.clientY - dragStartY) : 0;
+
+      isDraggingSheet = false;
+      activeSheet.classList.remove('dragging');
+      dragStartY = null;
+      dragStartX = null;
+
+      if (dy < -58) {
+        tearOffActiveSheet();
+      } else {
+        activeSheet.style.transform = '';
+        activeSheet.style.opacity = '';
+      }
+    }
+
+    spiralBinding.addEventListener('touchstart', handlePointerDown, { passive: true });
+    window.addEventListener('touchmove', handlePointerMove, { passive: true });
+    window.addEventListener('touchend', handlePointerUp);
+
+    spiralBinding.addEventListener('mousedown', handlePointerDown);
+    window.addEventListener('mousemove', handlePointerMove);
+    window.addEventListener('mouseup', handlePointerUp);
+
+    memoTextarea.addEventListener('input', () => {
+      state.draft = memoTextarea.value;
+      saveDraft();
+      updateTearButtonState();
+    });
+
+    memoTextarea.addEventListener('keydown', (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        e.preventDefault();
+        tearOffActiveSheet();
+      }
+    });
+
+    tearBtn.addEventListener('click', tearOffActiveSheet);
+
+    // Modal & settings events
+    openSettingsBtn.addEventListener('click', () => {
+      purgeExpiredArchive();
+      saveArchive();
+      updateSettingsLabels();
+      if (archiveVisible) renderArchiveBox();
+      settingsModal.classList.add('open');
+    });
+
+    function closeModal() {
+      settingsModal.classList.remove('open');
+      clearArmed = false;
+      clearTimeout(clearArmTimer);
+      clearAllBtn.textContent = '裏の控えと現在の紙をすべて消す';
+    }
+
+    closeSettingsBtn.addEventListener('click', closeModal);
+    settingsModal.addEventListener('click', (e) => {
+      if (e.target === settingsModal) closeModal();
+    });
+
+    ttlGrid.addEventListener('click', (e) => {
+      const btn = e.target.closest('.ttl-choice');
+      if (!btn) return;
+      state.settings.ttlHours = Number(btn.dataset.hours);
+      saveSettings();
+      if (purgeExpiredArchive()) saveArchive();
+      updateSettingsLabels();
+      if (archiveVisible) renderArchiveBox();
+    });
+
+    soundToggleBtn.addEventListener('click', () => {
+      state.settings.sound = !state.settings.sound;
+      saveSettings();
+      updateSettingsLabels();
+      if (state.settings.sound) playTearSound();
+    });
+
+    toggleArchiveBtn.addEventListener('click', () => {
+      archiveVisible = !archiveVisible;
+      archiveBox.classList.toggle('open', archiveVisible);
+      if (archiveVisible) {
+        renderArchiveBox();
+      }
+    });
+
+    exportBtn.addEventListener('click', () => {
+      purgeExpiredArchive();
+      if (state.archive.length === 0) {
+        showToast('書き出す控えがありません');
+        return;
+      }
+      try {
+        const text = state.archive
+          .map((item) => `[${formatStamp(item.createdAt)}]\n${item.text}`)
+          .join('\n\n---\n\n');
+        const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `hitorigoto_${new Date().toISOString().slice(0, 10)}.txt`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+        showToast('テキストを書き出しました');
+      } catch (err) {
+        showToast('この環境では書き出しできませんでした');
+      }
+    });
+
+    clearAllBtn.addEventListener('click', () => {
+      if (!clearArmed) {
+        clearArmed = true;
+        clearAllBtn.textContent = 'もう一度押すとすべて消去します';
+        clearTimeout(clearArmTimer);
+        clearArmTimer = setTimeout(() => {
+          clearArmed = false;
+          clearAllBtn.textContent = '裏の控えと現在の紙をすべて消す';
+        }, 3200);
+        return;
+      }
+
+      clearArmed = false;
+      clearTimeout(clearArmTimer);
+      clearAllBtn.textContent = '裏の控えと現在の紙をすべて消す';
+
+      state.archive = [];
+      state.draft = '';
+      memoTextarea.value = '';
+      saveArchive();
+      saveDraft();
+      updateTearButtonState();
+      updateSettingsLabels();
+      if (archiveVisible) renderArchiveBox();
+      showToast('すべて消去しました');
+    });
+
+    // Periodic check for automatic expiration
+    setInterval(() => {
+      if (purgeExpiredArchive()) {
+        saveArchive();
+        updateSettingsLabels();
+        if (archiveVisible) renderArchiveBox();
+      }
+    }, 60000);
+
+    // Initialize
+    loadState();
+    memoTextarea.value = state.draft;
+    updateTearButtonState();
+    updateSettingsLabels();
+  })();
+</script>
+</body>
+</html>
